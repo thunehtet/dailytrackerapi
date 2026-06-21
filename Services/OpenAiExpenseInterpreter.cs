@@ -84,10 +84,11 @@ public sealed class OpenAiExpenseInterpreter(
             JsonOptions,
             cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        var requestId = GetRequestId(response);
         if (!response.IsSuccessStatusCode)
         {
             throw new OpenAiException(
-                $"OpenAI returned status {(int)response.StatusCode}.");
+                $"OpenAI returned status {(int)response.StatusCode}. RequestId: {requestId}.");
         }
 
         try
@@ -100,11 +101,13 @@ public sealed class OpenAiExpenseInterpreter(
                 .GetString();
             if (string.IsNullOrWhiteSpace(content))
             {
-                throw new OpenAiException("OpenAI returned an empty interpretation.");
+                throw new OpenAiException(
+                    $"OpenAI returned an empty interpretation. RequestId: {requestId}.");
             }
 
             var parsed = JsonSerializer.Deserialize<ParsedExpense>(content, JsonOptions)
-                ?? throw new OpenAiException("OpenAI returned an invalid interpretation.");
+                ?? throw new OpenAiException(
+                    $"OpenAI returned an invalid interpretation. RequestId: {requestId}.");
             var occurredAt = DateTimeOffset.TryParse(
                 parsed.OccurredAt,
                 CultureInfo.InvariantCulture,
@@ -124,9 +127,12 @@ public sealed class OpenAiExpenseInterpreter(
                 text,
                 Confirmed: false);
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (
+            exception is JsonException or KeyNotFoundException or InvalidOperationException)
         {
-            throw new OpenAiException("OpenAI returned malformed JSON.", exception);
+            throw new OpenAiException(
+                $"OpenAI returned malformed interpretation JSON. RequestId: {requestId}.",
+                exception);
         }
     }
 
@@ -146,10 +152,11 @@ public sealed class OpenAiExpenseInterpreter(
             "audio/transcriptions",
             form,
             cancellationToken);
+        var requestId = GetRequestId(response);
         if (!response.IsSuccessStatusCode)
         {
             throw new OpenAiException(
-                $"OpenAI transcription returned status {(int)response.StatusCode}.");
+                $"OpenAI transcription returned status {(int)response.StatusCode}. RequestId: {requestId}.");
         }
 
         try
@@ -161,11 +168,19 @@ public sealed class OpenAiExpenseInterpreter(
                 ? throw new OpenAiException("OpenAI returned an empty transcription.")
                 : transcription.Trim();
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (
+            exception is JsonException or KeyNotFoundException or InvalidOperationException)
         {
-            throw new OpenAiException("OpenAI returned malformed transcription JSON.", exception);
+            throw new OpenAiException(
+                $"OpenAI returned malformed transcription JSON. RequestId: {requestId}.",
+                exception);
         }
     }
+
+    private static string GetRequestId(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("x-request-id", out var values)
+            ? values.FirstOrDefault() ?? "unavailable"
+            : "unavailable";
 
     private sealed record ParsedExpense(
         string Title,

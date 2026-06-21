@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Threading.RateLimiting;
+using daily_tracker_api.Infrastructure;
 using daily_tracker_api.Options;
 using daily_tracker_api.Services;
 
@@ -13,6 +14,7 @@ if (!string.IsNullOrWhiteSpace(railwayOpenAiKey))
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services
     .AddOptions<OpenAiOptions>()
     .Bind(builder.Configuration.GetSection(OpenAiOptions.SectionName))
@@ -24,7 +26,7 @@ builder.Services.AddHttpClient<IExpenseInterpreter, OpenAiExpenseInterpreter>(
             Microsoft.Extensions.Options.IOptions<OpenAiOptions>>().Value;
         client.BaseAddress = new Uri("https://api.openai.com/v1/");
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", options.ApiKey);
+            new AuthenticationHeaderValue("Bearer", options.ApiKey.Trim());
         client.Timeout = TimeSpan.FromSeconds(60);
     });
 builder.Services.AddRateLimiter(options =>
@@ -53,6 +55,13 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Trace-Id"] = context.TraceIdentifier;
+    await next();
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -60,7 +69,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRateLimiter();
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/health", (IConfiguration configuration) =>
+    string.IsNullOrWhiteSpace(configuration["OpenAI:ApiKey"])
+        ? Results.Json(
+            new { status = "unhealthy", reason = "OpenAI API key is not configured." },
+            statusCode: StatusCodes.Status503ServiceUnavailable)
+        : Results.Ok(new { status = "healthy" }));
 app.MapControllers();
 
 app.Run();
