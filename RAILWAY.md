@@ -15,7 +15,7 @@ This project is configured for Railway's Dockerfile builder.
 4. Deploy the service. Railway supplies `PORT`; the container listens on that port automatically.
 5. In the service settings, generate a public domain if the API should be internet-accessible.
 
-Railway checks `GET /health` during deployment. OpenAPI is intentionally available only in the Development environment.
+`GET /health` remains available for manual diagnostics. OpenAPI is intentionally available only in the Development environment.
 
 ## Test the image locally
 
