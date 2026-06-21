@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Threading.RateLimiting;
 using daily_tracker_api.Infrastructure;
 using daily_tracker_api.Options;
@@ -26,8 +25,9 @@ builder.Services.AddHttpClient<IExpenseInterpreter, OpenAiExpenseInterpreter>(
         var options = services.GetRequiredService<
             Microsoft.Extensions.Options.IOptions<OpenAiOptions>>().Value;
         client.BaseAddress = new Uri("https://api.openai.com/v1/");
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", options.ApiKey.Trim());
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            "Authorization",
+            $"Bearer {options.ApiKey.Trim()}");
         client.Timeout = TimeSpan.FromSeconds(60);
     });
 builder.Services.AddRateLimiter(options =>

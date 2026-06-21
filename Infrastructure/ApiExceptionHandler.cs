@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace daily_tracker_api.Infrastructure;
 
@@ -17,12 +18,18 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger)
             httpContext.TraceIdentifier,
             httpContext.Request.Path);
 
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        var configurationError = exception is OptionsValidationException;
+        var status = configurationError
+            ? StatusCodes.Status503ServiceUnavailable
+            : StatusCodes.Status500InternalServerError;
+        httpContext.Response.StatusCode = status;
         await httpContext.Response.WriteAsJsonAsync(
             new ProblemDetails
             {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "An unexpected server error occurred.",
+                Status = status,
+                Title = configurationError
+                    ? "The OpenAI service configuration is invalid."
+                    : "An unexpected server error occurred.",
                 Extensions = { ["traceId"] = httpContext.TraceIdentifier }
             },
             cancellationToken);
