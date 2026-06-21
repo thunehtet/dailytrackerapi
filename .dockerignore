@@ -1,0 +1,17 @@
+.git
+.gitignore
+.vs
+.vscode
+.idea
+**/bin
+**/obj
+**/TestResults
+**/coverage
+*.user
+*.suo
+*.log
+.env
+.env.*
+Dockerfile*
+README.md
+
