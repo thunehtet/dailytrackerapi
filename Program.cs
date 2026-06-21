@@ -16,8 +16,7 @@ builder.Services.AddOpenApi();
 builder.Services
     .AddOptions<OpenAiOptions>()
     .Bind(builder.Configuration.GetSection(OpenAiOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+    .ValidateDataAnnotations();
 builder.Services.AddHttpClient<IExpenseInterpreter, OpenAiExpenseInterpreter>(
     (services, client) =>
     {
@@ -57,9 +56,9 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapControllers();
