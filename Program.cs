@@ -14,6 +14,7 @@ if (!string.IsNullOrWhiteSpace(railwayOpenAiKey))
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services
     .AddOptions<OpenAiOptions>()
